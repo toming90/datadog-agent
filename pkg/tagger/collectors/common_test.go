@@ -1,6 +1,12 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2018 Datadog, Inc.
+
 package collectors
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 
@@ -41,4 +47,32 @@ func assertTagInfoEqual(t *testing.T, expected *TagInfo, item *TagInfo) bool {
 	sort.Strings(item.HighCardTags)
 
 	return assert.Equal(t, expected, item)
+}
+
+func TestResolveTag(t *testing.T) {
+	tests := []struct {
+		tmpl, label, expected string
+	}{
+		{
+			"kube_%%label%%", "app", "kube_app",
+		},
+		{
+			"foo_%%label%%_bar", "app", "foo_app_bar",
+		},
+		{
+			"%%label%%%%label%%", "app", "appapp",
+		},
+		{
+			"kube_", "app", "kube_",
+		},
+		{
+			"kube_%%foo%%", "app", "kube_",
+		},
+	}
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+			tagName := resolveTag(tt.tmpl, tt.label)
+			assert.Equal(t, tt.expected, tagName)
+		})
+	}
 }
