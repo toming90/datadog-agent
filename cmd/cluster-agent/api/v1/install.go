@@ -11,12 +11,12 @@ import (
 	"net/http"
 	"time"
 
+	as "github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
+
 	"github.com/gorilla/mux"
 	json "github.com/json-iterator/go"
 	"github.com/paulbellamy/ratecounter"
-
-	as "github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 var (
