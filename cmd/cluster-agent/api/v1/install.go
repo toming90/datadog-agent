@@ -6,13 +6,13 @@
 package v1
 
 import (
-	"encoding/json"
 	"expvar"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
+	json "github.com/json-iterator/go"
 	"github.com/paulbellamy/ratecounter"
 
 	as "github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
