@@ -9,6 +9,7 @@ package kubelet
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
@@ -87,8 +88,6 @@ func (ku *KubeUtil) parseContainerInPod(status ContainerStatus, pod *Pod) (*cont
 		EntityID: status.ID,
 		Name:     fmt.Sprintf("%s-%s", pod.Metadata.Name, status.Name),
 		Image:    status.Image,
-		// TODO
-		Health: containers.ContainerHealthy,
 	}
 
 	switch {
@@ -99,6 +98,7 @@ func (ku *KubeUtil) parseContainerInPod(status ContainerStatus, pod *Pod) (*cont
 	case status.State.Running != nil:
 		c.State = containers.ContainerRunningState
 		c.Created = status.State.Running.StartedAt.Unix()
+		c.Health = ku.parseContainerReadiness(status, pod)
 	case status.State.Terminated != nil:
 		if status.State.Terminated.ExitCode == 0 {
 			c.State = containers.ContainerExitedState
@@ -111,4 +111,38 @@ func (ku *KubeUtil) parseContainerInPod(status ContainerStatus, pod *Pod) (*cont
 	}
 
 	return c, nil
+}
+
+func (ku *KubeUtil) parseContainerReadiness(status ContainerStatus, pod *Pod) string {
+	// Quick return if container is ready
+	if status.Ready {
+		return containers.ContainerHealthy
+	}
+
+	// Look for readinessProbe in container spec
+	var probe *ContainerProbe
+	for _, s := range pod.Spec.Containers {
+		if s.Name == status.Name {
+			probe = s.ReadinessProbe
+			break
+		}
+	}
+	if probe == nil {
+		return containers.ContainerUnknownHealth
+	}
+
+	// Look for container start time
+	if status.State.Running == nil {
+		return containers.ContainerUnknownHealth
+	}
+	startTime := status.State.Running.StartedAt
+
+	// Compute grace time before which the container is starting
+	probeGraceTime := startTime.Add(time.Duration(probe.InitialDelaySeconds) * time.Second)
+
+	if time.Now().Before(probeGraceTime) {
+		return containers.ContainerStartingHealth
+	} else {
+		return containers.ContainerUnhealthy
+	}
 }
