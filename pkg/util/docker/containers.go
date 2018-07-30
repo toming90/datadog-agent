@@ -25,10 +25,33 @@ import (
 
 var healthRe = regexp.MustCompile(`\(health: (\w+)\)`)
 
+// ContainerListConfig allows to pass listing options
+type ContainerListConfig struct {
+	IncludeExited bool
+	FlagExcluded  bool
+}
+
+func (cfg *ContainerListConfig) getCacheKey() string {
+	cacheKey := "dockerutil.containers"
+	if cfg.IncludeExited {
+		cacheKey += ".with_exited"
+	} else {
+		cacheKey += ".without_exited"
+	}
+
+	if cfg.FlagExcluded {
+		cacheKey += ".with_excluded"
+	} else {
+		cacheKey += ".without_excluded"
+	}
+
+	return cacheKey
+}
+
 // Containers gets a list of all containers on the current node using a mix of
 // the Docker APIs and cgroups stats. We attempt to limit syscalls where possible.
 func (d *DockerUtil) Containers(cfg *ContainerListConfig) ([]*containers.Container, error) {
-	cacheKey := cfg.GetCacheKey()
+	cacheKey := cfg.getCacheKey()
 
 	// Get the containers either from our cache or with API queries.
 	var cList []*containers.Container
@@ -151,7 +174,7 @@ func (d *DockerUtil) dockerContainers(cfg *ContainerListConfig) ([]*containers.C
 			continue
 		}
 
-		entityID := fmt.Sprintf("docker://%s", c.ID)
+		entityID := ContainerIDToEntityName(c.ID)
 		container := &containers.Container{
 			Type:     "Docker",
 			ID:       c.ID,
@@ -177,7 +200,7 @@ func (d *DockerUtil) dockerContainers(cfg *ContainerListConfig) ([]*containers.C
 	}
 
 	if d.lastInvalidate.Add(invalidationInterval).After(time.Now()) {
-		d.invalidateCaches(cList)
+		d.cleanupCaches(cList)
 	}
 
 	return ret, nil
@@ -186,7 +209,6 @@ func (d *DockerUtil) dockerContainers(cfg *ContainerListConfig) ([]*containers.C
 // Parse the health out of a container status. The format is either:
 //  - 'Up 5 seconds (health: starting)'
 //  - 'Up about an hour'
-//
 func parseContainerHealth(status string) string {
 	// Avoid allocations in most cases by just checking for '('
 	if strings.IndexByte(status, '(') == -1 {
@@ -199,7 +221,8 @@ func parseContainerHealth(status string) string {
 	return all[0][1]
 }
 
-func (d *DockerUtil) invalidateCaches(containers []types.Container) {
+// cleanupCaches removes cache entries for unknown containers and images
+func (d *DockerUtil) cleanupCaches(containers []types.Container) {
 	liveContainers := make(map[string]struct{})
 	liveImages := make(map[string]struct{})
 	for _, c := range containers {
