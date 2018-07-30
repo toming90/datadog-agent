@@ -11,6 +11,7 @@ import "github.com/DataDog/datadog-agent/pkg/util/containers"
 type Collector interface {
 	Detect() error
 	List() ([]*containers.Container, error)
+	UpdateMetrics([]*containers.Container) error
 }
 
 // CollectorPriority helps resolving dupe tags from collectors

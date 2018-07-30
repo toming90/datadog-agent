@@ -34,7 +34,12 @@ func (c *KubeletCollector) Detect() error {
 
 // List gets all running containers
 func (c *KubeletCollector) List() ([]*containers.Container, error) {
-	return c.kubeUtil.Containers()
+	return c.kubeUtil.ListContainers()
+}
+
+// UpdateMetrics updates metrics on an existing list of containers
+func (c *KubeletCollector) UpdateMetrics(cList []*containers.Container) error {
+	return c.kubeUtil.UpdateContainerMetrics(cList)
 }
 
 func kubeletFactory() Collector {

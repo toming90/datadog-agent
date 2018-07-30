@@ -40,7 +40,12 @@ func (c *DockerCollector) Detect() error {
 
 // List gets all running containers
 func (c *DockerCollector) List() ([]*containers.Container, error) {
-	return c.dockerUtil.Containers(c.listConfig)
+	return c.dockerUtil.ListContainers(&docker.ContainerListConfig{})
+}
+
+// UpdateMetrics updates metrics on an existing list of containers
+func (c *DockerCollector) UpdateMetrics(cList []*containers.Container) error {
+	return c.dockerUtil.UpdateContainerMetrics(cList)
 }
 
 func dockerFactory() Collector {

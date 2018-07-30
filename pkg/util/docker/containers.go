@@ -17,7 +17,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 
-	"github.com/DataDog/datadog-agent/pkg/util/cache"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -31,75 +30,48 @@ type ContainerListConfig struct {
 	FlagExcluded  bool
 }
 
-func (cfg *ContainerListConfig) getCacheKey() string {
-	cacheKey := "dockerutil.containers"
-	if cfg.IncludeExited {
-		cacheKey += ".with_exited"
-	} else {
-		cacheKey += ".without_exited"
-	}
-
-	if cfg.FlagExcluded {
-		cacheKey += ".with_excluded"
-	} else {
-		cacheKey += ".without_excluded"
-	}
-
-	return cacheKey
-}
-
 // Containers gets a list of all containers on the current node using a mix of
 // the Docker APIs and cgroups stats. We attempt to limit syscalls where possible.
-func (d *DockerUtil) Containers(cfg *ContainerListConfig) ([]*containers.Container, error) {
-	cacheKey := cfg.getCacheKey()
-
-	// Get the containers either from our cache or with API queries.
-	var cList []*containers.Container
-	cached, hit := cache.Cache.Get(cacheKey)
-	if hit {
-		var ok bool
-		cList, ok = cached.([]*containers.Container)
-		if !ok {
-			log.Errorf("Invalid container list cache format, forcing a cache miss")
-			hit = false
-		}
-	}
-	if !hit {
-		cgByContainer, err := metrics.ScrapeAllCgroups()
-		if err != nil {
-			return nil, fmt.Errorf("could not get cgroups: %s", err)
-		}
-
-		cList, err = d.dockerContainers(cfg)
-		if err != nil {
-			return nil, fmt.Errorf("could not get docker containers: %s", err)
-		}
-
-		for _, container := range cList {
-			if container.Excluded {
-				continue
-			}
-			cgroup, ok := cgByContainer[container.ID]
-			if !ok {
-				continue
-			}
-			container.SetCgroups(cgroup)
-			err = container.FillCgroupLimits()
-			if err != nil {
-				log.Debugf("Cannot get limits for container %s: %s, skipping", container.ID[:12], err)
-				continue
-			}
-		}
-		cache.Cache.Set(cacheKey, cList, d.cfg.CacheDuration)
+func (d *DockerUtil) ListContainers(cfg *ContainerListConfig) ([]*containers.Container, error) {
+	cgByContainer, err := metrics.ScrapeAllCgroups()
+	if err != nil {
+		return nil, fmt.Errorf("could not get cgroups: %s", err)
 	}
 
-	var err error
+	cList, err := d.dockerContainers(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("could not get docker containers: %s", err)
+	}
+
 	for _, container := range cList {
-		if (cfg.IncludeExited && container.State == containers.ContainerExitedState) || container.Excluded {
+		if container.State == containers.ContainerExitedState || container.Excluded {
+			continue
+		}
+		cgroup, ok := cgByContainer[container.ID]
+		if !ok {
+			log.Debugf("No matching cgroups for container %s, skipping", container.ID[:12])
+			continue
+		}
+		container.SetCgroups(cgroup)
+		err = container.FillCgroupLimits()
+		if err != nil {
+			log.Debugf("Cannot get limits for container %s: %s, skipping", container.ID[:12], err)
+			continue
+		}
+	}
+	err = d.UpdateContainerMetrics(cList)
+	return cList, err
+}
+
+// UpdateContainerMetrics updates cgroup / network performance metrics for
+// a provided list of Container objects
+func (d *DockerUtil) UpdateContainerMetrics(cList []*containers.Container) error {
+	for _, container := range cList {
+		if container.State == containers.ContainerExitedState || container.Excluded {
 			continue
 		}
 
-		err = container.FillCgroupMetrics()
+		err := container.FillCgroupMetrics()
 		if err != nil {
 			log.Debugf("Cannot get metrics for container %s: %s", container.ID[:12], err)
 			continue
@@ -122,8 +94,7 @@ func (d *DockerUtil) Containers(cfg *ContainerListConfig) ([]*containers.Contain
 			}
 		}
 	}
-
-	return cList, nil
+	return nil
 }
 
 // dockerContainers returns the running container list from the docker API

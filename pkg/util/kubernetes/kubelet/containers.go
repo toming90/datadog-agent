@@ -15,12 +15,11 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-// Containers lists all non-excluded containers and retrieves their
-// performance metrics
-func (ku *KubeUtil) Containers() ([]*containers.Container, error) {
+// ListContainers lists all non-excluded running containers, and retrives their performance metrics
+func (ku *KubeUtil) ListContainers() ([]*containers.Container, error) {
 	pods, err := ku.GetLocalPodList()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get pod list: %s", err)
 	}
 
 	cgByContainer, err := metrics.ScrapeAllCgroups()
@@ -59,11 +58,15 @@ func (ku *KubeUtil) Containers() ([]*containers.Container, error) {
 			}
 		}
 	}
+	err = ku.UpdateContainerMetrics(ctrList)
+	return ctrList, err
+}
 
-	log.Debugf("Got %d containers", len(ctrList))
-
+// UpdateContainerMetrics updates cgroup / network performance metrics for
+// a provided list of Container objects
+func (ku *KubeUtil) UpdateContainerMetrics(ctrList []*containers.Container) error {
 	for _, container := range ctrList {
-		err = container.FillCgroupMetrics()
+		err := container.FillCgroupMetrics()
 		if err != nil {
 			log.Debugf("Cannot get metrics for container %s: %s", container.ID, err)
 			continue
@@ -74,8 +77,7 @@ func (ku *KubeUtil) Containers() ([]*containers.Container, error) {
 			continue
 		}
 	}
-
-	return ctrList, nil
+	return nil
 }
 
 func (ku *KubeUtil) parseContainerInPod(status ContainerStatus, pod *Pod) (*containers.Container, error) {
