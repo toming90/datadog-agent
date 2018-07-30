@@ -93,19 +93,11 @@ func (d *DockerUtil) Containers(cfg *ContainerListConfig) ([]*containers.Contain
 		cache.Cache.Set(cacheKey, cList, d.cfg.CacheDuration)
 	}
 
-	// Fill in the latest statistics from the cgroups
-	// Creating a new list of containers with copies so we don't lose
-	// the previous state for calculations (e.g. last cpu).
 	var err error
-	newContainers := make([]*containers.Container, 0, len(cList))
-	for _, lastContainer := range cList {
-		if (cfg.IncludeExited && lastContainer.State == containers.ContainerExitedState) || lastContainer.Excluded {
-			newContainers = append(newContainers, lastContainer)
+	for _, container := range cList {
+		if (cfg.IncludeExited && container.State == containers.ContainerExitedState) || container.Excluded {
 			continue
 		}
-
-		container := &containers.Container{}
-		*container = *lastContainer
 
 		err = container.FillCgroupMetrics()
 		if err != nil {
@@ -129,11 +121,9 @@ func (d *DockerUtil) Containers(cfg *ContainerListConfig) ([]*containers.Contain
 				continue
 			}
 		}
-
-		newContainers = append(newContainers, container)
 	}
 
-	return newContainers, nil
+	return cList, nil
 }
 
 // dockerContainers returns the running container list from the docker API
