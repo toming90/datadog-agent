@@ -29,15 +29,12 @@ func (c *ECSFargateCollector) Detect() error {
 
 // List gets all running containers
 func (c *ECSFargateCollector) List() ([]*containers.Container, error) {
-	return ecs.GetContainers()
+	return ecs.ListContainers()
 }
 
 // UpdateMetrics updates metrics on an existing list of containers
 func (c *ECSFargateCollector) UpdateMetrics(cList []*containers.Container) error {
-	// FIXME: actually implement if useful
-	var err error
-	cList, err = ecs.GetContainers()
-	return err
+	return ecs.UpdateContainerMetrics(cList)
 }
 
 func ecsFargateFactory() Collector {
