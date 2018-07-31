@@ -35,7 +35,7 @@ func (ku *KubeUtil) ListContainers() ([]*containers.Container, error) {
 			if ku.filter.IsExcluded(c.Name, c.Image) {
 				continue
 			}
-			container, err := ku.parseContainerInPod(c, pod)
+			container, err := parseContainerInPod(c, pod)
 			if err != nil {
 				log.Debugf("Cannot parse container %s in pod %s: %s", c.ID, pod.Metadata.Name, err)
 				continue
@@ -81,7 +81,7 @@ func (ku *KubeUtil) UpdateContainerMetrics(ctrList []*containers.Container) erro
 	return nil
 }
 
-func (ku *KubeUtil) parseContainerInPod(status ContainerStatus, pod *Pod) (*containers.Container, error) {
+func parseContainerInPod(status ContainerStatus, pod *Pod) (*containers.Container, error) {
 	c := &containers.Container{
 		Type:     "kubelet",
 		ID:       TrimRuntimeFromCID(status.ID),
@@ -98,7 +98,7 @@ func (ku *KubeUtil) parseContainerInPod(status ContainerStatus, pod *Pod) (*cont
 	case status.State.Running != nil:
 		c.State = containers.ContainerRunningState
 		c.Created = status.State.Running.StartedAt.Unix()
-		c.Health = ku.parseContainerReadiness(status, pod)
+		c.Health = parseContainerReadiness(status, pod)
 	case status.State.Terminated != nil:
 		if status.State.Terminated.ExitCode == 0 {
 			c.State = containers.ContainerExitedState
@@ -113,7 +113,7 @@ func (ku *KubeUtil) parseContainerInPod(status ContainerStatus, pod *Pod) (*cont
 	return c, nil
 }
 
-func (ku *KubeUtil) parseContainerReadiness(status ContainerStatus, pod *Pod) string {
+func parseContainerReadiness(status ContainerStatus, pod *Pod) string {
 	// Quick return if container is ready
 	if status.Ready {
 		return containers.ContainerHealthy
