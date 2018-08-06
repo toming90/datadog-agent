@@ -12,8 +12,8 @@ import (
 // LogsAgent is the global configuration object
 var LogsAgent = config.Datadog
 
-// Build returns logs-agent sources
-func Build() *LogSources {
+// DefaultSources returns the default log sources that can be directly set from the datadog.yaml or through environment variables.
+func DefaultSources() []*LogSource {
 	var sources []*LogSource
 
 	if LogsAgent.GetBool("logs_config.container_collect_all") {
@@ -36,5 +36,5 @@ func Build() *LogSources {
 		sources = append(sources, tcpForwardSource)
 	}
 
-	return NewLogSources(sources)
+	return sources
 }

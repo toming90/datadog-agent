@@ -24,20 +24,20 @@ func TestDefaultDatadogConfig(t *testing.T) {
 	assert.Equal(t, -1, LogsAgent.GetInt("logs_config.tcp_forward_port"))
 }
 
-func TestBuild(t *testing.T) {
-	var sources *LogSources
+func TestDefaultSources(t *testing.T) {
+	var sources []*LogSource
 	var source *LogSource
 
 	// should return an error
-	sources = Build()
-	assert.Equal(t, 0, len(sources.GetValidSources()))
+	sources = DefaultSources()
+	assert.Equal(t, 0, len(sources))
 
 	// should return the default tail all containers source
 	LogsAgent.Set("logs_config.container_collect_all", true)
 	LogsAgent.Set("logs_config.tcp_forward_port", -1)
-	sources = Build()
-	assert.Equal(t, 1, len(sources.GetValidSources()))
-	source = sources.GetValidSources()[0]
+	sources = DefaultSources()
+	assert.Equal(t, 1, len(sources))
+	source = sources[0]
 	assert.Equal(t, "container_collect_all", source.Name)
 	assert.Equal(t, DockerType, source.Config.Type)
 	assert.Equal(t, "docker", source.Config.Service)
@@ -46,9 +46,9 @@ func TestBuild(t *testing.T) {
 	// should return the tcp forward source
 	LogsAgent.Set("logs_config.container_collect_all", false)
 	LogsAgent.Set("logs_config.tcp_forward_port", 1234)
-	sources = Build()
-	assert.Equal(t, 1, len(sources.GetValidSources()))
-	source = sources.GetValidSources()[0]
+	sources = DefaultSources()
+	assert.Equal(t, 1, len(sources))
+	source = sources[0]
 	assert.Equal(t, "tcp_forward", source.Name)
 	assert.Equal(t, TCPType, source.Config.Type)
 	assert.Equal(t, 1234, source.Config.Port)
@@ -56,16 +56,16 @@ func TestBuild(t *testing.T) {
 	// should return the container collect all and tcp forward sources
 	LogsAgent.Set("logs_config.container_collect_all", true)
 	LogsAgent.Set("logs_config.tcp_forward_port", 1234)
-	sources = Build()
-	assert.Equal(t, 2, len(sources.GetValidSources()))
+	sources = DefaultSources()
+	assert.Equal(t, 2, len(sources))
 
-	source = sources.GetValidSources()[0]
+	source = sources[0]
 	assert.Equal(t, "container_collect_all", source.Name)
 	assert.Equal(t, DockerType, source.Config.Type)
 	assert.Equal(t, "docker", source.Config.Service)
 	assert.Equal(t, "docker", source.Config.Source)
 
-	source = sources.GetValidSources()[1]
+	source = sources[1]
 	assert.Equal(t, "tcp_forward", source.Name)
 	assert.Equal(t, TCPType, source.Config.Type)
 	assert.Equal(t, 1234, source.Config.Port)

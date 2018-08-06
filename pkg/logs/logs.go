@@ -26,7 +26,7 @@ func Start() error {
 	log.Info("Starting logs-agent")
 
 	// setup the log-sources
-	sources := config.Build()
+	sources := config.NewLogSources()
 
 	// initialize the config scheduler
 	scheduler = NewScheduler(sources)
@@ -34,6 +34,12 @@ func Start() error {
 	// setup and start the agent
 	agent = NewAgent(sources)
 	agent.Start()
+
+	// add the default log sources computed from datadog.yaml
+	// and environment variables.
+	for _, source := range config.DefaultSources() {
+		sources.AddSource(source)
+	}
 
 	// setup the status
 	status.Initialize(sources)
