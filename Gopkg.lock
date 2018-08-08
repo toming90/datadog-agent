@@ -803,6 +803,15 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/mobile"
+  packages = [
+    "asset",
+    "internal/mobileinit"
+  ]
+  revision = "507816974b79c76a5fe70f9580265cd57dc78bbe"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -1308,6 +1317,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "68a535bea5655513d4aaf581fc5c6423632d25e52482e7b2e1ba50cd68e9a41a"
+  inputs-digest = "25d030d49a412048e26759f279cdcabc8900081c2ebc8f1d9793a15cd4f17eff"
   solver-name = "gps-cdcl"
   solver-version = 1
