@@ -32,15 +32,13 @@ func NewFile(path string, source *config.LogSource) *File {
 
 // Provider implements the logic to retrieve at most filesLimit Files defined in sources
 type Provider struct {
-	sources         *config.LogSources
 	filesLimit      int
 	shouldLogErrors bool
 }
 
 // NewProvider returns a new Provider
-func NewProvider(sources *config.LogSources, filesLimit int) *Provider {
+func NewProvider(filesLimit int) *Provider {
 	return &Provider{
-		sources:         sources,
 		filesLimit:      filesLimit,
 		shouldLogErrors: true,
 	}
@@ -50,20 +48,21 @@ func NewProvider(sources *config.LogSources, filesLimit int) *Provider {
 // it cannot return more than filesLimit Files.
 // For now, there is no way to prioritize specific Files over others,
 // they are just returned in alphabetical order
-func (p *Provider) FilesToTail() []*File {
+func (p *Provider) FilesToTail(sources []*config.LogSource) []*File {
 	var filesToTail []*File
 	shouldLogErrors := p.shouldLogErrors
 	p.shouldLogErrors = false // Let's log errors on first run only
 
-	sources := p.sources.GetValidSourcesWithType(config.FileType)
 	for i := 0; i < len(sources) && len(filesToTail) < p.filesLimit; i++ {
 		source := sources[i]
 		sourcePath := source.Config.Path
+
 		if p.exists(sourcePath) {
 			// no need to traverse the file system here as we found a file
 			filesToTail = append(filesToTail, NewFile(sourcePath, source))
 			continue
 		}
+
 		// search all files matching pattern and append them all until filesLimit is reached
 		pattern := sourcePath
 		paths, err := filepath.Glob(pattern)
@@ -75,6 +74,7 @@ func (p *Provider) FilesToTail() []*File {
 			}
 			continue
 		}
+
 		if len(paths) == 0 {
 			// no file was found, its parent directories might have wrong permissions or it just does not exist
 			if p.containsWildcard(pattern) {
@@ -92,11 +92,13 @@ func (p *Provider) FilesToTail() []*File {
 			}
 			continue
 		}
+
 		for j := 0; j < len(paths) && len(filesToTail) < p.filesLimit; j++ {
 			path := paths[j]
 			filesToTail = append(filesToTail, NewFile(path, source))
 		}
 	}
+
 	if len(filesToTail) == p.filesLimit {
 		if shouldLogErrors {
 			log.Warn("Reached the limit on the maximum number of files in use: ", p.filesLimit)
