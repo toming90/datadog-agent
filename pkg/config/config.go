@@ -320,6 +320,9 @@ func init() {
 	BindEnvAndSetDefault("external_metrics_provider.bucket_size", 60*5)
 	BindEnvAndSetDefault("kubernetes_metadata_resync_period", 60*5) // 5 minutes
 
+	// Cluster check Autodiscovery
+	BindEnvAndSetDefault("cluster_checks.enabled", false)
+
 	Datadog.BindEnv("forwarder_timeout")
 	Datadog.BindEnv("forwarder_retry_queue_max_size")
 	Datadog.BindEnv("cloud_foundry")

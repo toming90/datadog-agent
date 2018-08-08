@@ -44,6 +44,8 @@ func Install(r *mux.Router) {
 	r.HandleFunc("/metadata/{nodeName}", getNodeMetadata).Methods("GET")
 	r.HandleFunc("/metadata", getAllMetadata).Methods("GET")
 	r.HandleFunc("/events/{check}", getCheckLatestEvents).Methods("GET")
+
+	installClusterCheckEndpoints(r)
 }
 
 func getCheckLatestEvents(w http.ResponseWriter, r *http.Request) {
