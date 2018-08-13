@@ -3,8 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2018 Datadog, Inc.
 
-// +build !windows
-
 package secrets
 
 import (
@@ -57,6 +55,8 @@ func execCommand(inputPayload string) ([]byte, error) {
 	}
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+
+	setCmdSysProcAttr(cmd)
 
 	err := cmd.Run()
 	if err != nil {
